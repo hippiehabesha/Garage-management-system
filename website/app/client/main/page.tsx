@@ -5,9 +5,9 @@ export default function Main() {
         minHeight: "100dvh",
         display: "grid",
         placeItems: "center",
-        background: "#0f172a",
+        background: "#ffffff",
       }}>
-      <div style={{ color: "#e2e8f0", fontSize: 20, fontWeight: 600 }}>
+      <div style={{ color: "#111111", fontSize: 20, fontWeight: 700 }}>
         Welcome to the Garage Management System
       </div>
     </div>
