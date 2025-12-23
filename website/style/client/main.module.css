@@ -251,6 +251,130 @@
   border-radius: 10px;
 }
 
+/* Modal styles */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 17, 17, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.modal {
+  width: min(100% - 32px, 720px);
+  background: var(--white);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 80px rgba(17, 17, 17, 0.25);
+  overflow: hidden;
+}
+
+.modalHeader {
+  padding: 14px 18px;
+  background: linear-gradient(90deg, var(--orange-50), transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+.modalTitle {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-left: 4px solid var(--orange);
+  padding-left: 10px;
+}
+
+.modalBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+  padding: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.fieldNote {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.fieldInput,
+.fieldSelect {
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  background: var(--white);
+  transition: border-color 160ms ease, box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.fieldInput:focus,
+.fieldSelect:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18);
+  background-color: var(--orange-50);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+  background: #fff;
+}
+
+.ghostButton {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ghostButton:hover {
+  background: #f9fafb;
+}
+
+.primaryButton {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--orange-600);
+  background: linear-gradient(135deg, var(--orange), var(--orange-600));
+  color: var(--white);
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.25);
+}
+
+.primaryButton:disabled,
+.ghostButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .modalBody {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .topBar {
     flex-direction: column;

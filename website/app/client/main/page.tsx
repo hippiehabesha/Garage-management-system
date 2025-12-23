@@ -16,6 +16,19 @@ export default function Main() {
   const [results, setResults] = useState<CarResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [plate, setPlate] = useState("");
+  const [department, setDepartment] = useState("");
+  const [model, setModel] = useState("");
+  const [eraNumber, setEraNumber] = useState("");
+  const [driverFirstName, setDriverFirstName] = useState("");
+  const [driverLastName, setDriverLastName] = useState("");
+  const [engineNumber, setEngineNumber] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+  const [mileage, setMileage] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -87,7 +100,7 @@ export default function Main() {
         <button
           className={styles.addCarButton}
           type="button"
-          onClick={() => router.push("/client/car")}>
+          onClick={() => setShowDialog(true)}>
           <img src="/add_car.png" alt="Add Car" className={styles.icon} />
           <span>Add Car</span>
         </button>
@@ -96,7 +109,7 @@ export default function Main() {
       {query.trim() && (
         <section className={styles.resultsCard}>
           {loading && <div className={styles.resultHint}>Searching…</div>}
-          {/* {error && <div className={styles.resultError}>{error}</div>} */}
+          {error && <div className={styles.resultError}>{error}</div>}
           {!loading && !error && results.length === 0 && (
             <div className={styles.resultHint}>No cars found</div>
           )}
@@ -131,6 +144,179 @@ export default function Main() {
           <div className={styles.placeholder}>No recent cars yet</div>
         </div>
       </main>
+
+      {showDialog && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => !saving && setShowDialog(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>Car Detail</div>
+            </div>
+            {formError && <div className={styles.resultError}>{formError}</div>}
+            <div className={styles.modalBody}>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Plate</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={plate}
+                  onChange={(e) => setPlate(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Department</span>
+                <select
+                  className={styles.fieldSelect}
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}>
+                  <option value="" disabled>
+                    Select department
+                  </option>
+                  <option>Human Resource</option>
+                  <option>Department Manager</option>
+                  <option>Software</option>
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Model</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>ERA Number</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={eraNumber}
+                  onChange={(e) => setEraNumber(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Driver First Name</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={driverFirstName}
+                  onChange={(e) => setDriverFirstName(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Driver Last Name</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={driverLastName}
+                  onChange={(e) => setDriverLastName(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Engine Number</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={engineNumber}
+                  onChange={(e) => setEngineNumber(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Serial Number</span>
+                <input
+                  className={styles.fieldInput}
+                  type="text"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                />
+              </label>
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>Mileage</span>
+                <input
+                  className={styles.fieldInput}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  type="text"
+                  value={mileage}
+                  onChange={(e) =>
+                    setMileage(e.target.value.replace(/\D+/g, ""))
+                  }
+                />
+                <span className={styles.fieldNote}>Numbers only</span>
+              </label>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                className={styles.ghostButton}
+                type="button"
+                disabled={saving}
+                onClick={() => setShowDialog(false)}>
+                Cancel
+              </button>
+              <button
+                className={styles.primaryButton}
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  setFormError(null);
+                  setSaving(true);
+                  router.push("/client/car");
+                  try {
+                    const res = await fetch("http://localhost:3001/api/cars", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        plate,
+                        department,
+                        model,
+                        eraNumber,
+                        driverFirstName,
+                        driverLastName,
+                        engineNumber,
+                        serialNumber,
+                        mileage,
+                      }),
+                    });
+                    const ct = res.headers.get("content-type") || "";
+                    const raw = await res.text();
+                    let data: any = null;
+                    if (ct.includes("application/json")) {
+                      try {
+                        data = JSON.parse(raw);
+                      } catch {
+                        throw new Error("Invalid JSON from server");
+                      }
+                    } else {
+                      throw new Error(
+                        raw?.slice(0, 200) || "Non-JSON response from server"
+                      );
+                    }
+                    if (!res.ok || !data?.ok)
+                      throw new Error(data?.message || "Save failed");
+                    setShowDialog(false);
+                    setPlate("");
+                    setDepartment("");
+                    setModel("");
+                    setEraNumber("");
+                    setDriverFirstName("");
+                    setDriverLastName("");
+                    setEngineNumber("");
+                    setSerialNumber("");
+                    setMileage("");
+                  } catch (e: any) {
+                    setFormError(e?.message || "Save failed");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
