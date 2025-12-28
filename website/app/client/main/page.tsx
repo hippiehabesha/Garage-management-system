@@ -119,7 +119,15 @@ export default function Main() {
                 <li
                   key={`${r.plate || "no-plate"}-${r.serial || idx}`}
                   className={styles.resultItem}
-                  onClick={() => router.push("/client/car")}>
+                  onClick={() =>
+                    router.push(
+                      `/client/car?plate=${encodeURIComponent(
+                        r.plate || ""
+                      )}&model=${encodeURIComponent(
+                        r.model || ""
+                      )}&serial_number=${encodeURIComponent(r.serial || "")}`
+                    )
+                  }>
                   <div className={styles.resultPlate}>{r.plate || "—"}</div>
                   <div className={styles.resultMeta}>
                     <span className={styles.resultSerial}>
@@ -262,7 +270,25 @@ export default function Main() {
                 onClick={async () => {
                   setFormError(null);
                   setSaving(true);
-                  router.push("/client/car");
+                  router.push(
+                    `/client/car?plate=${encodeURIComponent(
+                      plate
+                    )}&department=${encodeURIComponent(
+                      department
+                    )}&model=${encodeURIComponent(
+                      model
+                    )}&era_number=${encodeURIComponent(
+                      eraNumber
+                    )}&driver_first_name=${encodeURIComponent(
+                      driverFirstName
+                    )}&driver_last_name=${encodeURIComponent(
+                      driverLastName
+                    )}&engine_number=${encodeURIComponent(
+                      engineNumber
+                    )}&serial_number=${encodeURIComponent(
+                      serialNumber
+                    )}&mileage=${encodeURIComponent(mileage)}`
+                  );
                   try {
                     const res = await fetch("http://localhost:3001/api/cars", {
                       method: "POST",

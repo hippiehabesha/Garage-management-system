@@ -215,6 +215,98 @@ app.get("/api/cars/search", (req, res) => {
   });
 });
 
+// Get full car detail by plate or serial_number
+app.get("/api/cars/detail", (req, res) => {
+  const plate = (req.query.plate || "").toString().trim();
+  const serial = (req.query.serial_number || "").toString().trim();
+  if (!plate && !serial) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "plate or serial_number is required" });
+  }
+
+  const db = getDb();
+  db.all("PRAGMA table_info(CAR);", [], (err, rows) => {
+    if (err) {
+      db.close();
+      return res.status(500).json({
+        ok: false,
+        message: "Failed to read CAR table schema",
+        error: String(err),
+      });
+    }
+
+    const columns = rows.map((r) => r.name);
+    const plateField = pickColumns(columns, ["plate"]);
+    const serialField = pickColumns(columns, ["serial_number"]);
+
+    const whereParts = [];
+    const params = [];
+    if (plate && plateField) {
+      whereParts.push(`${plateField} = ?`);
+      params.push(plate);
+    }
+    if (serial && serialField) {
+      whereParts.push(`${serialField} = ?`);
+      params.push(serial);
+    }
+    if (whereParts.length === 0) {
+      db.close();
+      return res.status(500).json({
+        ok: false,
+        message: "Could not identify key columns in CAR table",
+        columns,
+      });
+    }
+
+    const sql = `SELECT * FROM CAR WHERE ${whereParts.join(" OR ")} LIMIT 1`;
+    db.get(sql, params, (qErr, row) => {
+      db.close();
+      if (qErr) {
+        return res
+          .status(500)
+          .json({ ok: false, message: "Database error", error: String(qErr) });
+      }
+      if (!row) {
+        return res.status(404).json({ ok: false, message: "Car not found" });
+      }
+      // Normalize DB columns to expected client keys
+      const col = (cands) => pickColumns(columns, cands);
+      const mapping = {
+        plate: col(["plate"]),
+        department: col(["department"]),
+        model: col(["model"]),
+        era_number: col(["era_number"]),
+        driver_first_name: col(["driver_first_name"]),
+        driver_last_name: col(["driver_last_name"]),
+        mileage: col(["mileage"]),
+        engine_number: col(["engine_number"]),
+        serial_number: col(["serial_number"]),
+      };
+      const car = {
+        plate: mapping.plate ? row[mapping.plate] : null,
+        department: mapping.department ? row[mapping.department] : null,
+        model: mapping.model ? row[mapping.model] : null,
+        era_number: mapping.era_number ? row[mapping.era_number] : null,
+        driver_first_name: mapping.driver_first_name
+          ? row[mapping.driver_first_name]
+          : null,
+        driver_last_name: mapping.driver_last_name
+          ? row[mapping.driver_last_name]
+          : null,
+        mileage: mapping.mileage ? row[mapping.mileage] : null,
+        engine_number: mapping.engine_number
+          ? row[mapping.engine_number]
+          : null,
+        serial_number: mapping.serial_number
+          ? row[mapping.serial_number]
+          : null,
+      };
+      return res.json({ ok: true, car });
+    });
+  });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Auth server listening on http://localhost:${PORT}`);
