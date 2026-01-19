@@ -159,7 +159,7 @@ export default function Main() {
           onClick={() => !saving && setShowDialog(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <div className={styles.modalTitle}>Car Detail</div>
+              <div className={styles.modalTitle}>Car Register Form</div>
             </div>
             {formError && <div className={styles.resultError}>{formError}</div>}
             <div className={styles.modalBody}>
