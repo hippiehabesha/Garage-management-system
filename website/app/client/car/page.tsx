@@ -17,7 +17,7 @@ function V({ v }: { v: string | null }) {
 export default function Car() {
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const checklistItems = useMemo(
     () => [
