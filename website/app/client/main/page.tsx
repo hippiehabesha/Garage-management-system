@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import styles from "../../../style/client/main.module.css";
+import styles from "@/style/client/main.module.css";
 
 type CarResult = {
   plate: string | null;
