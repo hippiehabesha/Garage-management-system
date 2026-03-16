@@ -21,13 +21,20 @@ import {
   Key,
   ClipboardList,
   FileSearch,
-  Shield
+  Shield,
+  BarChart3,
+  FileText,
+  Download,
+  Eye,
+  EyeOff
 } from "lucide-react";
-import styles from "../../../style/admin/dashboard.module.css";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import styles from "@/style/admin/dashboard.module.css";
 
 const API = "http://localhost:3001/api/admin";
 
-type Tab = "overview" | "cars" | "mechanics" | "technicians" | "inspections" | "checklists" | "admins" | "admin";
+type Tab = "overview" | "cars" | "mechanics" | "technicians" | "inspections" | "checklists" | "admins" | "admin" | "reports";
 
 type Admin = {
   admin_id: number;
@@ -101,6 +108,7 @@ export default function AdminDashboard() {
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [currentAdmin, setCurrentAdmin] = useState<{ admin_id: number; username: string } | null>(null);
+  const [reportPeriod, setReportPeriod] = useState<"weekly" | "monthly" | "annual">("weekly");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [toast, setToast] = useState<Toast>(null);
@@ -109,6 +117,7 @@ export default function AdminDashboard() {
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [selectedMech, setSelectedMech] = useState<Mechanic | null>(null);
   const [selectedTech, setSelectedTech] = useState<Technician | null>(null);
+  const [showAdminPass, setShowAdminPass] = useState(false);
 
   const [modal, setModal] = useState<{
     type: "add" | "edit" | "delete";
@@ -166,7 +175,7 @@ export default function AdminDashboard() {
     try {
       const stored = sessionStorage.getItem("adminUser");
       if (stored) setCurrentAdmin(JSON.parse(stored));
-    } catch {}
+    } catch { }
   }, [fetchAll]);
 
   useEffect(() => {
@@ -256,18 +265,28 @@ export default function AdminDashboard() {
   async function handleSaveAdmin() {
     setSaving(true);
     try {
-      const res = await fetch(`${API}/credentials`, {
+      if (!currentAdmin?.admin_id) throw new Error("No active admin session");
+      
+      const payload: any = { username: formData.username };
+      if (formData.password) payload.password = formData.password;
+
+      const res = await fetch(`${API}/admins/${currentAdmin.admin_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
+        body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok || !result.ok) throw new Error(result.message || "Failed");
       showToast("success", "Admin profile updated");
       setIsEditingAdmin(false);
+      
+      // Update session storage if username changed
+      if (currentAdmin) {
+        const updated = { ...currentAdmin, username: formData.username };
+        setCurrentAdmin(updated);
+        sessionStorage.setItem("adminUser", JSON.stringify(updated));
+      }
+      fetchAll(); // Refresh data
     } catch (err: any) {
       showToast("error", err?.message || "Operation failed");
     } finally {
@@ -287,6 +306,10 @@ export default function AdminDashboard() {
       if (!res.ok || !result.ok)
         throw new Error(result.message || "Delete failed");
       showToast("success", "Deleted successfully");
+      if (modal.entity === "admins" && modal.data.admin_id === currentAdmin?.admin_id) {
+        sessionStorage.removeItem("adminUser");
+        router.push("/admin/login");
+      }
       setModal(null);
       fetchAll();
     } catch (err: any) {
@@ -348,6 +371,7 @@ export default function AdminDashboard() {
     { key: "cars", icon: <CarFront size={20} strokeWidth={2.5} />, label: "Cars" },
     { key: "mechanics", icon: <Wrench size={20} strokeWidth={2.5} />, label: "Mechanics" },
     { key: "technicians", icon: <PenTool size={20} strokeWidth={2.5} />, label: "Technicians" },
+    { key: "reports", icon: <BarChart3 size={20} strokeWidth={2.5} />, label: "Reports" },
     { key: "admins", icon: <Shield size={20} strokeWidth={2.5} />, label: "Admins" },
   ];
 
@@ -364,6 +388,129 @@ export default function AdminDashboard() {
   const getTechName = (id?: number) => {
     const t = technicians.find((x) => x.technician_id === id);
     return t ? `${t.first_name} ${t.last_name}` : "Unknown Technician";
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const dateStr = new Date().toLocaleDateString();
+
+    const now = new Date();
+    const currentStart = new Date();
+    const previousStart = new Date();
+    const previousEnd = new Date();
+
+    if (reportPeriod === "weekly") {
+      currentStart.setDate(now.getDate() - 7);
+      previousStart.setDate(now.getDate() - 14);
+      previousEnd.setDate(now.getDate() - 7);
+    } else if (reportPeriod === "monthly") {
+      currentStart.setMonth(now.getMonth() - 1);
+      previousStart.setMonth(now.getMonth() - 2);
+      previousEnd.setMonth(now.getMonth() - 1);
+    } else { // annual
+      currentStart.setFullYear(now.getFullYear() - 1);
+      previousStart.setFullYear(now.getFullYear() - 2);
+      previousEnd.setFullYear(now.getFullYear() - 1);
+    }
+
+    const calcStats = (data: any[]) => {
+      const current = data.filter(i => new Date(i.date) >= currentStart).length;
+      const previous = data.filter(i => {
+        const d = new Date(i.date);
+        return d >= previousStart && d < previousEnd;
+      }).length;
+      const diff = current - previous;
+      const percent = previous === 0 ? (current > 0 ? 100 : 0) : Math.round((diff / previous) * 100);
+      return { current, previous, percent };
+    };
+
+    const inspStats = calcStats(inspections);
+    const chkStats = calcStats(checklists);
+
+    // Modern Header Design
+    doc.setFillColor(15, 23, 42); // Navy background
+    doc.rect(0, 0, 210, 45, 'F');
+
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Garage Management", 14, 25);
+
+    doc.setFontSize(11);
+    doc.setTextColor(220, 220, 220);
+    doc.text(`${reportPeriod.toUpperCase()} OPERATIONS REPORT`, 14, 34);
+
+    // Right-aligned report meta info (Moved slightly left to avoid clipping)
+    doc.setFontSize(10);
+    doc.text(`Generated: ${dateStr}`, 190, 25, { align: "right" });
+    doc.text(`Period: ${currentStart.toLocaleDateString()} - ${now.toLocaleDateString()}`, 190, 34, { align: "right" });
+
+    // Summary Title
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42);
+    doc.text("Performance Overview", 14, 65);
+
+    // Performance Metrics Table
+    autoTable(doc, {
+      startY: 72,
+      head: [['Operational Metric', 'This Period', 'Last Period', 'Trend']],
+      body: [
+        ['Inspections Completed',
+          inspStats.current.toString(),
+          inspStats.previous.toString(),
+          `${inspStats.percent >= 0 ? '+' : '-'}${Math.abs(inspStats.percent)}%`
+        ],
+        ['Checklists Finalized',
+          chkStats.current.toString(),
+          chkStats.previous.toString(),
+          `${chkStats.percent >= 0 ? '+' : '-'}${Math.abs(chkStats.percent)}%`
+        ],
+        ['Active Fleet Size', cars.length.toString(), '-', '-'],
+      ],
+      styles: {
+        fontSize: 11,
+        cellPadding: 8,
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3) {
+          const val = data.cell.text[0];
+          if (val && val.startsWith('+')) {
+            data.cell.styles.textColor = [16, 185, 129]; // Green
+          } else if (val && val.startsWith('-')) {
+            data.cell.styles.textColor = [220, 38, 38]; // Red
+          }
+        }
+      }
+    });
+
+    // Sub-summary/Insights
+    const finalY = (doc as any).lastAutoTable.finalY + 30;
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text("Report Summary:", 14, finalY);
+
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    const pLabel = reportPeriod === 'annual' ? 'year' : reportPeriod.replace('ly', '');
+    const summaryText = `This ${pLabel} saw ${inspStats.current} new inspections and ${chkStats.current} checklists processed. ` +
+      `Overall activity is ${inspStats.percent >= 0 ? 'up' : 'down'} by ${Math.abs(inspStats.percent)}% compared to the previous period.`;
+
+    const splitText = doc.splitTextToSize(summaryText, 180);
+    doc.text(splitText, 14, finalY + 8);
+
+    // Footer
+    doc.setFontSize(9);
+    doc.setTextColor(180);
+    doc.text("Confidential Garage Operations Report - Internal Use Only", 105, 285, { align: "center" });
+
+    doc.save(`garage-report-${reportPeriod}-${dateStr.replace(/\//g, '-')}.pdf`);
   };
 
   return (
@@ -392,12 +539,13 @@ export default function AdminDashboard() {
           </nav>
 
           <div className={styles.sidebarFooter}>
-            <div 
+            <div
               className={styles.adminProfileCard}
               onClick={() => {
                 setTab("admin");
                 setIsEditingAdmin(false);
-                setFormData({ username: "Admin", password: "" });
+                setShowAdminPass(false);
+                setFormData({ username: currentAdmin?.username || "Admin", password: "" });
               }}
             >
               <div className={styles.adminAvatar}>A</div>
@@ -408,7 +556,7 @@ export default function AdminDashboard() {
           </div>
         </div>
         {/* Toggle Button Overlapping Right Edge */}
-        <button 
+        <button
           className={styles.sidebarToggle}
           onClick={() => setIsSidebarOpen((prev) => !prev)}
         >
@@ -1153,6 +1301,96 @@ export default function AdminDashboard() {
                 </>
               )}
 
+              {/* ── Reports ────────────── */}
+              {tab === "reports" && (
+                <>
+                  <div className={styles.reportsHeader}>
+                    <div className={styles.reportsTabs}>
+                      {(["weekly", "monthly", "annual"] as const).map((p) => (
+                        <button
+                          key={p}
+                          className={reportPeriod === p ? styles.reportPeriodTabActive : styles.reportPeriodTab}
+                          onClick={() => setReportPeriod(p)}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                    <button className={styles.exportBtn} onClick={generatePDF}>
+                      <Download size={16} />
+                      Export PDF
+                    </button>
+                  </div>
+
+                  <div className={styles.reportsGrid}>
+                    {(() => {
+                      const now = new Date();
+                      const currentStart = new Date();
+                      const previousStart = new Date();
+                      const previousEnd = new Date();
+
+                      if (reportPeriod === "weekly") {
+                        currentStart.setDate(now.getDate() - 7);
+                        previousStart.setDate(now.getDate() - 14);
+                        previousEnd.setDate(now.getDate() - 7);
+                      } else if (reportPeriod === "monthly") {
+                        currentStart.setMonth(now.getMonth() - 1);
+                        previousStart.setMonth(now.getMonth() - 2);
+                        previousEnd.setMonth(now.getMonth() - 1);
+                      } else { // annual
+                        currentStart.setFullYear(now.getFullYear() - 1);
+                        previousStart.setFullYear(now.getFullYear() - 2);
+                        previousEnd.setFullYear(now.getFullYear() - 1);
+                      }
+
+                      const calculateStats = (data: any[]) => {
+                        const current = data.filter(item => {
+                          const d = new Date(item.date);
+                          return d >= currentStart;
+                        }).length;
+
+                        const previous = data.filter(item => {
+                          const d = new Date(item.date);
+                          return d >= previousStart && d < previousEnd;
+                        }).length;
+
+                        const diff = current - previous;
+                        const percent = previous === 0 ? (current > 0 ? 100 : 0) : Math.round((diff / previous) * 100);
+
+                        return { current, previous, diff, percent };
+                      };
+
+                      const inspStats = calculateStats(inspections);
+                      const chkStats = calculateStats(checklists);
+
+                      return (
+                        <>
+                          <div className={styles.reportCard}>
+                            <div className={styles.reportCardTitle}>Inspection Activity</div>
+                            <div className={styles.reportStat}>
+                              <div className={styles.reportStatValue}>{inspStats.current}</div>
+                              <div className={`${styles.reportStatTrend} ${inspStats.percent >= 0 ? styles.trendUp : styles.trendDown}`}>
+                                {inspStats.percent >= 0 ? "+" : ""}{inspStats.percent}% from last {reportPeriod === 'annual' ? 'year' : reportPeriod.replace('ly', '')}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className={styles.reportCard}>
+                            <div className={styles.reportCardTitle}>Checklist Completion</div>
+                            <div className={styles.reportStat}>
+                              <div className={styles.reportStatValue}>{chkStats.current}</div>
+                              <div className={`${styles.reportStatTrend} ${chkStats.percent >= 0 ? styles.trendUp : styles.trendDown}`}>
+                                {chkStats.percent >= 0 ? "+" : ""}{chkStats.percent}% from last {reportPeriod === 'annual' ? 'year' : reportPeriod.replace('ly', '')}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+
               {/* ── Admin Accounts ──────── */}
               {tab === "admins" && (
                 <>
@@ -1237,14 +1475,16 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </div>
-                      <button 
-                        className={styles.primaryBtn} 
+                      <button
+                        className={styles.primaryBtn}
                         style={{ padding: "10px 20px", textTransform: "uppercase", fontSize: 11, letterSpacing: 1, borderRadius: 8 }}
                         onClick={() => {
                           if (isEditingAdmin) {
                             handleSaveAdmin();
                           } else {
                             setIsEditingAdmin(true);
+                            setShowAdminPass(false);
+                            setFormData({ ...formData, password: "" });
                           }
                         }}
                         disabled={saving}
@@ -1261,14 +1501,20 @@ export default function AdminDashboard() {
                       Administrative Info
                     </div>
                     <div className={styles.adminField}>
-                      <div className={styles.adminFieldLabel}>User Name</div>
-                      <input
-                        className={styles.adminCardInput}
-                        type="text"
-                        value={formData.username || ""}
-                        disabled={!isEditingAdmin}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      />
+                      <div className={styles.adminFieldLabel}>Username</div>
+                      <div className={styles.adminInputWrapper}>
+                        <input
+                          className={styles.adminCardInput}
+                          type="text"
+                          value={formData.username || ""}
+                          disabled={!isEditingAdmin}
+                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                          placeholder="Enter Admin Username"
+                        />
+                        {isEditingAdmin && !formData.username && (
+                          <span className={styles.inputHint}>Username cannot be empty</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1279,14 +1525,31 @@ export default function AdminDashboard() {
                       Security & Password
                     </div>
                     <div className={styles.adminField}>
-                      <input
-                        className={styles.adminCardInput}
-                        type="password"
-                        value={formData.password || ""}
-                        placeholder={isEditingAdmin ? "Enter new password" : "••••••••••"}
-                        disabled={!isEditingAdmin}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      />
+                      <div className={styles.adminFieldLabel}>Password</div>
+                      <div className={styles.adminInputWrapper}>
+                        <div className={styles.adminInputContainer}>
+                          <input
+                            className={styles.adminCardInput}
+                            type={showAdminPass ? "text" : "password"}
+                            value={formData.password || ""}
+                            placeholder={isEditingAdmin ? "Enter new password" : "••••••••••"}
+                            disabled={!isEditingAdmin}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          />
+                          {isEditingAdmin && (
+                            <button
+                              className={styles.passwordToggle}
+                              onClick={() => setShowAdminPass(!showAdminPass)}
+                              type="button"
+                            >
+                              {showAdminPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          )}
+                        </div>
+                        {isEditingAdmin && !formData.password && (
+                          <span className={styles.inputHint}>Enter a new password to update</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1298,7 +1561,14 @@ export default function AdminDashboard() {
                         <p>Manage your current login session and security.</p>
                       </div>
                       <div className={styles.adminSessionActions}>
-                        <button className={styles.deleteAccountBtn}>Delete my account</button>
+                        <button
+                          className={styles.deleteAccountBtn}
+                          onClick={() => {
+                            if (currentAdmin) openDelete("admins", currentAdmin);
+                          }}
+                        >
+                          Delete my account
+                        </button>
                         <button className={styles.logoutSolidBtn} onClick={() => router.push("/admin/login")}>
                           <LogOut size={16} strokeWidth={2.5} />
                           Logout
@@ -1333,32 +1603,31 @@ export default function AdminDashboard() {
             </div>
             <div className={["cars", "mechanics", "technicians"].includes(modal.entity) ? styles.modalBodyGrid : styles.modalBody}>
               {Object.keys(formData)
-                .filter((key) => !(modal.entity === "cars" && ["driver_first_name", "driver_last_name", "department"].includes(key)))
                 .map((key) => (
-                <label key={key} className={styles.field}>
-                  <span className={styles.fieldLabel}>
-                    {fieldLabels[key] || key}
-                  </span>
-                  <input
-                    id={`field-${key}`}
-                    className={styles.fieldInput}
-                    type={key === "password" ? "password" : "text"}
-                    value={formData[key]}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        [key]:
-                          key === "mileage"
-                            ? e.target.value.replace(/\D+/g, "")
-                            : e.target.value,
-                      }))
-                    }
-                    placeholder={`Enter ${(
-                      fieldLabels[key] || key
-                    ).toLowerCase()}`}
-                  />
-                </label>
-              ))}
+                  <label key={key} className={styles.field}>
+                    <span className={styles.fieldLabel}>
+                      {fieldLabels[key] || key}
+                    </span>
+                    <input
+                      id={`field-${key}`}
+                      className={styles.fieldInput}
+                      type={key === "password" ? "password" : "text"}
+                      value={formData[key]}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          [key]:
+                            key === "mileage"
+                              ? e.target.value.replace(/\D+/g, "")
+                              : e.target.value,
+                        }))
+                      }
+                      placeholder={`Enter ${(
+                        fieldLabels[key] || key
+                      ).toLowerCase()}`}
+                    />
+                  </label>
+                ))}
             </div>
             <div className={styles.modalActions}>
               <button
@@ -1377,8 +1646,8 @@ export default function AdminDashboard() {
                 {saving
                   ? "Saving..."
                   : modal.type === "add"
-                  ? "Create"
-                  : "Save"}
+                    ? "Create"
+                    : "Save"}
               </button>
             </div>
           </div>
@@ -1393,19 +1662,19 @@ export default function AdminDashboard() {
               <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>
                 {modal.type === "add" ? "Add Administrator" : "Edit Administrator"}
               </div>
-              <button 
+              <button
                 onClick={() => setModal(null)}
                 style={{ background: 'none', border: 'none', fontSize: 24, color: '#94a3b8', cursor: 'pointer', lineHeight: 1 }}
               >
                 ×
               </button>
             </div>
-            
+
             <div style={{ display: 'grid', gap: 20 }}>
               <label style={{ display: 'grid', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Username</span>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.username || ""}
                   onChange={e => setFormData({ ...formData, username: e.target.value })}
                   style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: '#0f172a', width: '100%', boxSizing: 'border-box' }}
@@ -1414,8 +1683,8 @@ export default function AdminDashboard() {
               </label>
               <label style={{ display: 'grid', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Password</span>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={formData.password || ""}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                   style={{ padding: '12px 16px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit', fontSize: 14, color: '#0f172a', width: '100%', boxSizing: 'border-box' }}
@@ -1423,7 +1692,7 @@ export default function AdminDashboard() {
                 />
               </label>
 
-              <button 
+              <button
                 onClick={handleSave}
                 disabled={saving}
                 style={{ marginTop: 8, padding: '14px', borderRadius: 8, background: '#0f172a', color: '#fff', border: 'none', fontWeight: 500, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', width: '100%' }}
