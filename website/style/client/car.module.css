@@ -1,0 +1,279 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f97316; /* gray-900 */
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addButton:active {
+  transform: translateY(1px);
+}
+
+.addIcon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Modal styles */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  background: #ffffff;
+  color: #0a0a0a;
+  width: 100%;
+  max-width: 960px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  padding: 12px 16px;
+  border-bottom: 3px solid #f97316; /* orange accent */
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.modalBody {
+  padding: 12px 16px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.toggleGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .toggleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid transparent;
+  background: #f9fafb;
+  color: #0a0a0a;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.toggleOn {
+  background: #0a0a0a; /* black */
+  color: #ffffff;
+}
+
+.pill {
+  width: 36px;
+  height: 22px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  position: relative;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.pillOn {
+  background: #f97316; /* orange */
+}
+
+.dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: transform 0.2s ease;
+}
+
+.dotOn {
+  transform: translateX(14px);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px 16px 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btnSecondary {
+  background: #ffffff;
+  color: #0a0a0a;
+  border-color: #0a0a0a;
+}
+
+.btnPrimary {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.btnAccent {
+  background: #f97316;
+  color: #0a0a0a;
+}
+
+/* Step 2 grouped sections */
+.section {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.section + .section {
+  margin-top: 10px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: #0a0a0a;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.sectionTitle {
+  font-weight: 800;
+}
+
+.caret {
+  transition: transform 0.2s ease;
+}
+
+.caretOpen {
+  transform: rotate(90deg);
+}
+
+.sectionBody {
+  padding: 8px 12px 12px 12px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0a0a0a;
+}
+
+.accent {
+  height: 6px;
+  background: #f97316; /* orange */
+  border-radius: 999px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.label {
+  color: #374151; /* gray-700 */
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  color: #0a0a0a;
+  font-weight: 600;
+}
+
+.placeholder {
+  color: #9ca3af; /* gray-400 */
+}
+
+.listArea {
+  background: #ffffff;
+  border: 2px dashed #f97316; /* orange */
+  border-radius: 12px;
+  min-height: 220px;
+  padding: 16px;
+}
