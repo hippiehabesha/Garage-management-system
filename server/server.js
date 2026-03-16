@@ -507,9 +507,10 @@ app.post("/api/admin/cars", adminCreate("CAR", ["plate"]));
 app.put("/api/admin/cars/:id", adminUpdate("CAR", "car_id"));
 app.delete("/api/admin/cars/:id", adminDelete("CAR", "car_id"));
 
-// ── Admins (list, create, delete-own) ──
+// ── Admins (list, create, update, delete) ──
 app.get("/api/admin/admins", adminList("ADMIN"));
 app.post("/api/admin/admins", adminCreate("ADMIN", ["username", "password"]));
+app.put("/api/admin/admins/:id", adminUpdate("ADMIN", "admin_id"));
 app.delete("/api/admin/admins/:id", adminDelete("ADMIN", "admin_id"));
 
 
